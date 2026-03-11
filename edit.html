@@ -35,7 +35,7 @@
     }
 
     .settings-panel {
-      flex: 0 0 400px; /* Фиксированная ширина для левой панели */
+      flex: 0 0 400px;
       background: var(--panel-bg);
       border: 2px solid var(--primary);
       border-radius: var(--border-radius);
@@ -149,13 +149,12 @@
       cursor: pointer;
     }
 
-    /* Правая панель с превью */
     .preview-panel {
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: 16px;
-      min-width: 0; /* Важно для предотвращения вылезания iframe за границы */
+      min-width: 0;
     }
 
     .action-header {
@@ -211,7 +210,6 @@
       background: #f57c00;
     }
 
-    /* Скрытое поле для копирования */
     #hiddenResultBox {
       position: absolute;
       left: -9999px;
@@ -250,7 +248,6 @@
       background: transparent;
     }
     
-    /* Стилизация скроллбара */
     ::-webkit-scrollbar {
       width: 8px;
     }
@@ -363,6 +360,7 @@
 
         <label>Расположение списка слов:
           <select id="wordsListPosition">
+            <option value="none">Без списка (скрыть)</option>
             <option value="left">Слева</option>
             <option value="right" selected>Справа</option>
           </select>
@@ -419,11 +417,10 @@
           const warningBox = document.getElementById('warningBox');
           warningBox.style.display = 'block';
           warningBox.innerText = `⚠️ Ошибка: Слово "${wordsList.find(w => w.length === longestWord)}" длиннее, чем размер сетки (${gridSize}x${gridSize}). Пожалуйста, увеличьте размер сетки или удалите это слово.`;
-          return; // Не генерируем iframe, если есть заведомо невозможная длина
+          return; 
         }
       }
 
-      // Скрываем предупреждение перед новой генерацией
       document.getElementById('warningBox').style.display = 'none';
 
       const params = new URLSearchParams({
@@ -445,11 +442,9 @@
 
       const iframeURL = `https://nikashum93.github.io/wordsearch3/main.html?${params.toString()}`;
 
-      // Записываем код в скрытое поле
       document.getElementById('hiddenResultBox').value = 
         `<iframe src="${iframeURL}" width="960" height="540" frameborder="0" allowfullscreen></iframe>`;
 
-      // Обновляем предпросмотр
       const preview = document.getElementById('previewFrame');
       if (preview) {
         preview.src = iframeURL;
@@ -463,32 +458,28 @@
       el.select();
       document.execCommand('copy');
       
-      // Визуальная обратная связь
       const originalText = btn.innerText;
       btn.innerText = 'Скопировано!';
       btn.style.background = '#4CAF50';
       
       setTimeout(() => {
         btn.innerText = originalText;
-        btn.style.background = ''; // Возвращаем класс по умолчанию
+        btn.style.background = ''; 
       }, 2000);
     }
 
-    // Слушатели событий
     document.querySelectorAll('textarea, select, input[type="text"], input[type="checkbox"], input[type="color"]').forEach(el =>
       el.addEventListener('input', generateIframe)
     );
 
     window.onload = generateIframe;
 
-    // Слушатель для вывода предупреждений из iframe (main.html)
     window.addEventListener('message', function(event) {
       const warningBox = document.getElementById('warningBox');
       if (event.data && event.data.type === 'placementWarning') {
         warningBox.style.display = 'block';
         warningBox.innerText = `⚠️ Внимание! В сетку не поместились слова: ${event.data.unplaced.join(', ')}. Увеличьте размер сетки или уберите лишние слова!`;
       } else if (event.data && event.data.type === 'placementSuccess') {
-        // Если все слова влезли и нет ошибок длины
         const wordsList = document.getElementById('words').value.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
         const gridSize = parseInt(document.getElementById('gridSize').value || 10);
         const longestWord = wordsList.length > 0 ? wordsList.reduce((max, w) => Math.max(max, w.length), 0) : 0;
