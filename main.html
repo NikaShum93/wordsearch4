@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Редактор Wordsearch — КГБ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: #f3faff;
+      color: #111;
+      font-family: 'Orbitron', Arial, sans-serif;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    #container {
+      display: flex;
+      gap: 32px;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 28px;
+      width: 100vw; height: 100vh;
+      box-sizing: border-box;
+    }
+    .settings-panel {
+      width: 56%;
+      background: #ffffff;
+      border: 2px solid #00ccff;
+      border-radius: 20px;
+      padding: 26px 30px;
+      box-shadow: 0 0 14px #00ccff88;
+      display: flex;
+      flex-direction: column;
+    }
+    .kgb-header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+    .logo {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #eee;
+      box-shadow: 0 0 6px #00ccff;
+    }
+    .big-title {
+      font-size: 1.5em;
+      color: #00ccff;
+      text-shadow: 0 0 6px #00ccff88;
+    }
+    .editor-fields label {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+      font-size: 0.95em;
+    }
+    textarea, input, select {
+      width: 100%;
+      padding: 8px 10px;
+      background: #f8fdff;
+      color: #111;
+      border: 1.5px solid #00ccff;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+    .effect-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 6px;
+    }
+    .code-panel {
+      width: 40%;
+      background: #ffffff;
+      border: 2px dashed #00ccff;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 0 12px #00ccff55;
+      display: flex;
+      flex-direction: column;
+    }
+    #resultBox {
+      width: 100%;
+      height: 100px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: #111;
+      background: #f8fdff;
+      border: 2px solid #00ccff;
+      border-radius: 8px;
+      padding: 8px;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+    .copy-btn {
+      background: #00ccff;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #00e0ff;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div class="settings-panel">
+      <div class="kgb-header">
+        <img class="logo" src="https://nikashum93.github.io/pusyriki/assets/kgb-logo.png" alt="KGB">
+        <div class="big-title">Корпорация Геймификации Будущего</div>
+      </div>
+      <div class="editor-fields">
+        <label>Слова (через запятую или с новой строки):
+          <textarea id="words" placeholder="apple, banana, робот..."></textarea>
+        </label>
+        <label>Язык / Алфавит:
+          <select id="alphabet">
+            <option value="latin">Латиница</option>
+            <option value="cyrillic">Кириллица</option>
+            <option value="french">Французский</option>
+            <option value="german">Немецкий</option>
+            <option value="spanish">Испанский</option>
+            <option value="pinyin">Пиньинь</option>
+            <option value="hiragana">Хирагана</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Регистр:
+            <select id="case">
+              <option value="uppercase">ЗАГЛАВНЫЕ</option>
+              <option value="lowercase">строчные</option>
+            </select>
+          </label>
+          <label>Сложность:
+            <select id="level">
+              <option value="easy">Лёгкий</option>
+              <option value="medium">Средний</option>
+              <option value="hard">Сложный</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Цвет фона ячейки:
+            <input type="color" id="bgColor" value="#f8fdff">
+          </label>
+          <label>Цвет рамки:
+            <input type="color" id="borderColor" value="#00ccff">
+          </label>
+        </div>
+        <label>Размер грида:
+          <select id="gridSize">
+            <option value="5">5 x 5</option>
+            <option value="6">6 x 6</option>
+            <option value="7">7 x 7</option>
+            <option value="8">8 x 8</option>
+            <option value="9">9 x 9</option>
+            <option value="10">10 x 10</option>
+            <option value="11">11 x 11</option>
+            <option value="12">12 x 12</option>
+          </select>
+        </label>
+        <label>Финальное сообщение:
+          <input type="text" id="winText" placeholder="Молодец! Все слова найдены!">
+        </label>
+        <div class="effect-row">
+          <label><input type="checkbox" id="sparkles"> Блестяшки</label>
+        </div>
+        <div class="row">
+  <label>Цвет текста:
+    <input type="color" id="textColor" value="#00ffff">
+  </label>
+  <label>Выбор стиля:
+    <select id="style">
+      <option value="light">Светлый</option>
+      <option value="rainbow">Радужный</option>
+    </select>
+  </label>
+</div>
+
+<div class="row">
+  <label><input type="checkbox" id="neon" checked> Неоновая подсветка</label>
+  <label>Цвет подсветки:
+    <input type="color" id="neonColor" value="#00ffff">
+  </label>
+</div>
+
+<label>Расположение списка слов:
+  <select id="wordsListPosition">
+       <option value="left">Слева</option>
+    <option value="right">Справа</option>
+   </select>
+</label>
+      </div>
+    </div>
+    <div class="code-panel">
+      <div class="code-title">Код для вставки в Genially:</div>
+      <textarea readonly id="resultBox"></textarea>
+      <button class="copy-btn" onclick="copyIframe()">Скопировать</button>
+      
+      <div class="code-title" style="margin-top: 24px;">Предпросмотр игры:</div>
+      <div id="warningBox" style="display: none; color: #d32f2f; background: #ffebee; border: 1px solid #ffcdd2; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-weight: bold;"></div>
+      <iframe id="previewFrame" style="width: 100%; height: 450px; border: 2px dashed #00ccff; border-radius: 12px; background: #fff;"></iframe>
+    </div>
+  </div>
+
+  <script>
+  function generateIframe() {
+    const wordsRaw = document.getElementById('words').value;
+    const alphabet = document.getElementById('alphabet').value;
+    const letterCase = document.getElementById('case').value;
+    const level = document.getElementById('level').value;
+    // 1. Получаем сам <input id="winText">
+const winInput   = document.getElementById('winText');
+
+// 2. Берём либо введённый текст, либо, если пусто, текст из placeholder
+const rawWinText = winInput.value.trim() || winInput.placeholder;
+
+// 3. Кодируем получившуюся строку для URL
+const winText    = encodeURIComponent(rawWinText);
+
+    const style = document.getElementById('style')?.value || 'light';
+    const neon = document.getElementById('neon')?.checked ? 1 : 0;
+    const neonColor = document.getElementById('neonColor')?.value?.slice(1) || '00ffff';
+    const sparkles = document.getElementById('sparkles')?.checked ? 1 : 0;
+    const bgColor = document.getElementById('bgColor')?.value?.slice(1) || 'f8fdff';
+    const borderColor = document.getElementById('borderColor')?.value?.slice(1) || '00ccff';
+    const textColor = document.getElementById('textColor')?.value?.slice(1) || '00ffff';
+    const gridSize = parseInt(document.getElementById('gridSize')?.value || 10);
+    const wordsListPosition = document.getElementById('wordsListPosition')?.value || 'bottom';
+
+    const wordsList = wordsRaw.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
+    const longestWord = wordsList.reduce((max, w) => Math.max(max, w.length), 0);
+
+    if (longestWord > gridSize) {
+      alert(`Слово "${wordsList.find(w => w.length === longestWord)}" слишком длинное для грида ${gridSize}x${gridSize}.\nУвеличьте размер грида или уберите слово.`);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      words: wordsList.join(','),
+      alphabet,
+      case: letterCase,
+      level,
+      winText,
+      style,
+      neon,
+      neonColor,
+      sparkles,
+      bgColor,
+      borderColor,
+      textColor,
+      gridSize,
+      wordsListPosition
+    });
+
+    const iframeURL = `https://nikashum93.github.io/wordsearch3/main.html?${params.toString()}`;
+
+    document.getElementById('resultBox').value =
+      `<iframe src="${iframeURL}" width="960" height="540" frameborder="0" allowfullscreen></iframe>`;
+
+    const preview = document.getElementById('previewFrame');
+    if (preview) preview.src = iframeURL;
+  }
+
+  function copyIframe() {
+    const el = document.getElementById('resultBox');
+    el.select();
+    document.execCommand('copy');
+  }
+
+  document.querySelectorAll('textarea, select, input[type="text"], input[type="checkbox"], input[type="color"]').forEach(el =>
+    el.addEventListener('input', generateIframe)
+  );
+
+  window.onload = generateIframe;
+
+  // Слушатель для вывода предупреждений из iframe
+  window.addEventListener('message', function(event) {
+    const warningBox = document.getElementById('warningBox');
+    if (event.data && event.data.type === 'placementWarning') {
+      warningBox.style.display = 'block';
+      warningBox.innerText = `⚠️ Внимание! В сетку не поместились слова: ${event.data.unplaced.join(', ')}. Увеличьте размер сетки или уберите лишние слова!`;
+    } else if (event.data && event.data.type === 'placementSuccess') {
+      warningBox.style.display = 'none';
+      warningBox.innerText = '';
+    }
+  });
+</script>
+</body>
+</html>
