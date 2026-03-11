@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Редактор Wordsearch — КГБ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00ccff;
+      --primary-hover: #00b3e6;
+      --bg-color: #f3faff;
+      --panel-bg: #ffffff;
+      --text-main: #111;
+      --border-radius: 12px;
+    }
+
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Orbitron', Arial, sans-serif;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    #container {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      width: 100vw; 
+      min-height: 100vh;
+      box-sizing: border-box;
+      align-items: stretch;
+    }
+
+    .settings-panel {
+      flex: 0 0 400px; /* Фиксированная ширина для левой панели */
+      background: var(--panel-bg);
+      border: 2px solid var(--primary);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(0, 204, 255, 0.15);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      max-height: calc(100vh - 48px);
+    }
+
+    .kgb-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #eee;
+      box-shadow: 0 0 8px var(--primary);
+      flex-shrink: 0;
+    }
+
+    .big-title {
+      font-size: 1.2em;
+      line-height: 1.3;
+      color: var(--primary);
+      text-shadow: 0 0 4px rgba(0, 204, 255, 0.3);
+    }
+
+    .editor-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .editor-fields label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.9em;
+      font-weight: bold;
+      color: #333;
+    }
+
+    textarea, input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #f8fdff;
+      color: var(--text-main);
+      border: 1.5px solid #b3e5fc;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95em;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus, input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.2);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 38px;
+      padding: 2px;
+      border: 1.5px solid #b3e5fc;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #f8fdff;
+    }
+
+    .checkbox-label {
+      flex-direction: row !important;
+      align-items: center;
+      gap: 10px !important;
+      cursor: pointer;
+      padding: 8px 0;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Правая панель с превью */
+    .preview-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0; /* Важно для предотвращения вылезания iframe за границы */
+    }
+
+    .action-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel-bg);
+      padding: 16px 24px;
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 16px rgba(0, 204, 255, 0.1);
+      border: 1px solid #e1f5fe;
+    }
+
+    .code-title {
+      font-size: 1.1em;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .copy-btn {
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+      font-family: inherit;
+      font-size: 1em;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 2px 8px rgba(0, 204, 255, 0.3);
+    }
+
+    .copy-btn:hover {
+      background: var(--primary-hover);
+    }
+    
+    .copy-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Скрытое поле для копирования */
+    #hiddenResultBox {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+
+    #warningBox {
+      display: none;
+      color: #d32f2f;
+      background: #ffebee;
+      border: 1px solid #ffcdd2;
+      padding: 16px;
+      border-radius: var(--border-radius);
+      font-size: 0.95em;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(211, 47, 47, 0.1);
+      line-height: 1.4;
+    }
+
+    .iframe-container {
+      flex: 1;
+      background: var(--panel-bg);
+      border: 2px dashed #b3e5fc;
+      border-radius: var(--border-radius);
+      padding: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      display: flex;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      min-height: 500px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+    }
+    
+    /* Стилизация скроллбара */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1; 
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #b3e5fc; 
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary); 
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    
+    <div class="settings-panel">
+      <div class="kgb-header">
+        <img class="logo" src="https://nikashum93.github.io/pusyriki/assets/kgb-logo.png" alt="KGB">
+        <div class="big-title">Корпорация<br>Геймификации Будущего</div>
+      </div>
+      
+      <div class="editor-fields">
+        <label>Слова (через запятую или с новой строки):
+          <textarea id="words" placeholder="apple, banana, робот..."></textarea>
+        </label>
+        
+        <label>Язык / Алфавит:
+          <select id="alphabet">
+            <option value="latin">Латиница</option>
+            <option value="cyrillic">Кириллица</option>
+            <option value="french">Французский</option>
+            <option value="german">Немецкий</option>
+            <option value="spanish">Испанский</option>
+            <option value="pinyin">Пиньинь</option>
+            <option value="hiragana">Хирагана</option>
+          </select>
+        </label>
+        
+        <div class="row">
+          <label>Регистр:
+            <select id="case">
+              <option value="uppercase">ЗАГЛАВНЫЕ</option>
+              <option value="lowercase">строчные</option>
+            </select>
+          </label>
+          <label>Сложность:
+            <select id="level">
+              <option value="easy">Лёгкий</option>
+              <option value="medium">Средний</option>
+              <option value="hard">Сложный</option>
+            </select>
+          </label>
+        </div>
+        
+        <div class="color-row">
+          <label>Цвет фона ячейки:
+            <input type="color" id="bgColor" value="#f8fdff">
+          </label>
+          <label>Цвет рамки:
+            <input type="color" id="borderColor" value="#00ccff">
+          </label>
+        </div>
+        
+        <label>Размер грида:
+          <select id="gridSize">
+            <option value="5">5 x 5</option>
+            <option value="6">6 x 6</option>
+            <option value="7">7 x 7</option>
+            <option value="8">8 x 8</option>
+            <option value="9">9 x 9</option>
+            <option value="10" selected>10 x 10</option>
+            <option value="11">11 x 11</option>
+            <option value="12">12 x 12</option>
+          </select>
+        </label>
+        
+        <label>Финальное сообщение:
+          <input type="text" id="winText" placeholder="Молодец! Все слова найдены!">
+        </label>
+        
+        <label class="checkbox-label">
+          <input type="checkbox" id="sparkles"> Блестяшки
+        </label>
+        
+        <div class="row">
+          <label>Цвет текста:
+            <input type="color" id="textColor" value="#00ffff">
+          </label>
+          <label>Выбор стиля:
+            <select id="style">
+              <option value="light">Светлый</option>
+              <option value="rainbow">Радужный</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="checkbox-label" style="padding:0;">
+            <input type="checkbox" id="neon" checked> Неоновая подсветка
+          </label>
+          <label>Цвет подсветки:
+            <input type="color" id="neonColor" value="#00ffff">
+          </label>
+        </div>
+
+        <label>Расположение списка слов:
+          <select id="wordsListPosition">
+            <option value="left">Слева</option>
+            <option value="right" selected>Справа</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="preview-panel">
+      <div class="action-header">
+        <h3 class="code-title">Предпросмотр игры</h3>
+        <button class="copy-btn" onclick="copyIframe()" id="copyBtn">Скопировать код</button>
+      </div>
+      
+      <textarea id="hiddenResultBox" aria-hidden="true"></textarea>
+
+      <div id="warningBox"></div>
+      
+      <div class="iframe-container">
+        <iframe id="previewFrame" title="Предпросмотр игры"></iframe>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function generateIframe() {
+      const wordsRaw = document.getElementById('words').value;
+      const alphabet = document.getElementById('alphabet').value;
+      const letterCase = document.getElementById('case').value;
+      const level = document.getElementById('level').value;
+      
+      const winInput = document.getElementById('winText');
+      const rawWinText = winInput.value.trim() || winInput.placeholder;
+      const winText = encodeURIComponent(rawWinText);
+
+      const style = document.getElementById('style')?.value || 'light';
+      const neon = document.getElementById('neon')?.checked ? 1 : 0;
+      const neonColor = document.getElementById('neonColor')?.value?.slice(1) || '00ffff';
+      const sparkles = document.getElementById('sparkles')?.checked ? 1 : 0;
+      const bgColor = document.getElementById('bgColor')?.value?.slice(1) || 'f8fdff';
+      const borderColor = document.getElementById('borderColor')?.value?.slice(1) || '00ccff';
+      const textColor = document.getElementById('textColor')?.value?.slice(1) || '00ffff';
+      const gridSize = parseInt(document.getElementById('gridSize')?.value || 10);
+      const wordsListPosition = document.getElementById('wordsListPosition')?.value || 'right';
+
+      const wordsList = wordsRaw.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
+      
+      if (wordsList.length > 0) {
+        const longestWord = wordsList.reduce((max, w) => Math.max(max, w.length), 0);
+        if (longestWord > gridSize) {
+          const warningBox = document.getElementById('warningBox');
+          warningBox.style.display = 'block';
+          warningBox.innerText = `⚠️ Ошибка: Слово "${wordsList.find(w => w.length === longestWord)}" длиннее, чем размер сетки (${gridSize}x${gridSize}). Пожалуйста, увеличьте размер сетки или удалите это слово.`;
+          return; // Не генерируем iframe, если есть заведомо невозможная длина
+        }
+      }
+
+      // Скрываем предупреждение перед новой генерацией
+      document.getElementById('warningBox').style.display = 'none';
+
+      const params = new URLSearchParams({
+        words: wordsList.join(','),
+        alphabet,
+        case: letterCase,
+        level,
+        winText,
+        style,
+        neon,
+        neonColor,
+        sparkles,
+        bgColor,
+        borderColor,
+        textColor,
+        gridSize,
+        wordsListPosition
+      });
+
+      const iframeURL = `https://nikashum93.github.io/wordsearch3/main.html?${params.toString()}`;
+
+      // Записываем код в скрытое поле
+      document.getElementById('hiddenResultBox').value = 
+        `<iframe src="${iframeURL}" width="960" height="540" frameborder="0" allowfullscreen></iframe>`;
+
+      // Обновляем предпросмотр
+      const preview = document.getElementById('previewFrame');
+      if (preview) {
+        preview.src = iframeURL;
+      }
+    }
+
+    function copyIframe() {
+      const el = document.getElementById('hiddenResultBox');
+      const btn = document.getElementById('copyBtn');
+      
+      el.select();
+      document.execCommand('copy');
+      
+      // Визуальная обратная связь
+      const originalText = btn.innerText;
+      btn.innerText = 'Скопировано!';
+      btn.style.background = '#4CAF50';
+      
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = ''; // Возвращаем класс по умолчанию
+      }, 2000);
+    }
+
+    // Слушатели событий
+    document.querySelectorAll('textarea, select, input[type="text"], input[type="checkbox"], input[type="color"]').forEach(el =>
+      el.addEventListener('input', generateIframe)
+    );
+
+    window.onload = generateIframe;
+
+    // Слушатель для вывода предупреждений из iframe (main.html)
+    window.addEventListener('message', function(event) {
+      const warningBox = document.getElementById('warningBox');
+      if (event.data && event.data.type === 'placementWarning') {
+        warningBox.style.display = 'block';
+        warningBox.innerText = `⚠️ Внимание! В сетку не поместились слова: ${event.data.unplaced.join(', ')}. Увеличьте размер сетки или уберите лишние слова!`;
+      } else if (event.data && event.data.type === 'placementSuccess') {
+        // Если все слова влезли и нет ошибок длины
+        const wordsList = document.getElementById('words').value.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
+        const gridSize = parseInt(document.getElementById('gridSize').value || 10);
+        const longestWord = wordsList.length > 0 ? wordsList.reduce((max, w) => Math.max(max, w.length), 0) : 0;
+        
+        if (longestWord <= gridSize) {
+            warningBox.style.display = 'none';
+            warningBox.innerText = '';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
