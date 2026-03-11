@@ -175,6 +175,11 @@
       margin: 0;
     }
 
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
     .copy-btn {
       background: var(--primary);
       color: white;
@@ -195,6 +200,15 @@
     
     .copy-btn:active {
       transform: scale(0.98);
+    }
+
+    .update-btn {
+      background: #ff9800;
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    }
+
+    .update-btn:hover {
+      background: #f57c00;
     }
 
     /* Скрытое поле для копирования */
@@ -288,10 +302,11 @@
           </label>
           <label>Сложность:
             <select id="level">
-              <option value="easy">Лёгкий</option>
-              <option value="medium">Средний</option>
-              <option value="hard">Сложный</option>
+              <option value="easy">Лёгкий (вправо и вниз)</option>
+              <option value="medium">Средний (+ по диагонали)</option>
+              <option value="hard">Сложный (все направления)</option>
             </select>
+            <span style="font-size: 0.8em; color: #666; font-weight: normal; margin-top: 4px; line-height: 1.25;">*Рекомендация: если слов много или они длинные — используйте Сложный режим.</span>
           </label>
         </div>
         
@@ -358,7 +373,10 @@
     <div class="preview-panel">
       <div class="action-header">
         <h3 class="code-title">Предпросмотр игры</h3>
-        <button class="copy-btn" onclick="copyIframe()" id="copyBtn">Скопировать код</button>
+        <div class="btn-group">
+          <button class="copy-btn update-btn" onclick="generateIframe()">Обновить превью</button>
+          <button class="copy-btn" onclick="copyIframe()" id="copyBtn">Скопировать код</button>
+        </div>
       </div>
       
       <textarea id="hiddenResultBox" aria-hidden="true"></textarea>
