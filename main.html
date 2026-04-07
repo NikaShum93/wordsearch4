@@ -473,9 +473,9 @@ const wordsListPosition = urlParams.get("wordsListPosition") || "right";
     // --- ВЗАИМОДЕЙСТВИЕ ---
     let selection = [];
 
-    function checkLine() {
-      if (selection.length < 2) return false;
-      const first = selection[0];
+ function checkLine() {
+  if (selection.length < 2) return true; // ОДНА буква больше не вызывает ошибку линии
+  const first = selection[0];
       const last = selection[selection.length - 1];
       const dx = last.dataset.x - first.dataset.x;
       const dy = last.dataset.y - first.dataset.y;
