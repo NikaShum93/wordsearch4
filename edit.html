@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Редактор Wordsearch — КГБ</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #00ccff;
@@ -19,7 +18,7 @@
       width: 100vw; height: 100vh;
       background: var(--bg-color);
       color: var(--text-main);
-      font-family: 'Orbitron', Arial, sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
       box-sizing: border-box;
       overflow-x: hidden;
     }
@@ -70,6 +69,7 @@
       line-height: 1.3;
       color: var(--primary);
       text-shadow: 0 0 4px rgba(0, 204, 255, 0.3);
+      font-weight: bold;
     }
 
     .editor-fields {
@@ -172,6 +172,7 @@
       font-size: 1.1em;
       color: var(--primary);
       margin: 0;
+      font-weight: bold;
     }
 
     .btn-group {
@@ -303,9 +304,17 @@
               <option value="medium">Средний (+ по диагонали)</option>
               <option value="hard">Сложный (все направления)</option>
             </select>
-            <span style="font-size: 0.8em; color: #666; font-weight: normal; margin-top: 4px; line-height: 1.25;">*Рекомендация: если слов много или они длинные — используйте Сложный режим.</span>
           </label>
         </div>
+
+        <label>Стиль шрифта (офлайн):
+          <select id="fontFamily">
+            <option value="system">Стандартный (Arial, без засечек)</option>
+            <option value="kids">Мультяшный / Детский (Comic Sans)</option>
+            <option value="script">Рукописный (Segoe Script)</option>
+            <option value="tech">Техно / Цифровой (Consolas)</option>
+          </select>
+        </label>
         
         <div class="color-row">
           <label>Цвет фона ячейки:
@@ -332,19 +341,44 @@
         <label>Финальное сообщение:
           <input type="text" id="winText" placeholder="Молодец! Все слова найдены!">
         </label>
+
+        <div class="row">
+          <label class="checkbox-label" style="margin-top: 10px;">
+            <input type="checkbox" id="sparkles"> Блестяшки
+          </label>
+          <label class="checkbox-label" style="margin-top: 10px;">
+            <input type="checkbox" id="soundOn" checked> Звуки в игре
+          </label>
+        </div>
         
-        <label class="checkbox-label">
-          <input type="checkbox" id="sparkles"> Блестяшки
-        </label>
+        <div class="row">
+          <label>Подсказки:
+            <select id="hintLimit">
+              <option value="0">Выключены</option>
+              <option value="unlimited">Безлимит</option>
+              <option value="1">1 подсказка</option>
+              <option value="2">2 подсказки</option>
+              <option value="3" selected>3 подсказки</option>
+              <option value="5">5 подсказок</option>
+            </select>
+          </label>
+          <label>Расположение списка:
+            <select id="wordsListPosition">
+              <option value="none">Без списка</option>
+              <option value="left">Слева</option>
+              <option value="right" selected>Справа</option>
+            </select>
+          </label>
+        </div>
         
         <div class="row">
           <label>Цвет текста:
             <input type="color" id="textColor" value="#00ffff">
           </label>
-          <label>Выбор стиля:
+          <label>Визуальный эффект:
             <select id="style">
-              <option value="light">Светлый</option>
-              <option value="rainbow">Радужный</option>
+              <option value="light">Обычный (Без свечения)</option>
+              <option value="rainbow">Радужный перелив</option>
             </select>
           </label>
         </div>
@@ -358,13 +392,6 @@
           </label>
         </div>
 
-        <label>Расположение списка слов:
-          <select id="wordsListPosition">
-            <option value="none">Без списка (скрыть)</option>
-            <option value="left">Слева</option>
-            <option value="right" selected>Справа</option>
-          </select>
-        </label>
       </div>
     </div>
 
@@ -378,39 +405,659 @@
       </div>
       
       <textarea id="hiddenResultBox" aria-hidden="true"></textarea>
-
       <div id="warningBox"></div>
       
       <div class="iframe-container">
-        <iframe id="previewFrame" title="Предпросмотр игры"></iframe>
+        <iframe id="previewFrame" title="Предпросмотр игры" frameborder="0"></iframe>
       </div>
     </div>
 
   </div>
 
   <script>
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('keydown', function(e) {
+      if (e.keyCode === 123 || 
+         (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
+         (e.ctrlKey && e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    const engineTemplate = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Wordsearch</title>
+  <style>
+    :root {
+      --main-color: #00ffff;
+      --text-color: #00ffff;
+      --border-color: #00ffff;
+      --cell-bg: rgba(255, 255, 255, 0.8);
+      --cell-font: Arial, Helvetica, sans-serif;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: transparent;
+      font-family: var(--cell-font);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #gridWrapper { position: relative; display: flex; }
+    #grid {
+      position: relative;   
+      display: grid;
+      grid-template-columns: repeat(var(--n), 44px);
+      grid-auto-rows: 44px;
+      gap: 7px;
+    }
+    #container {
+      display: flex;
+      flex-direction: column; 
+      gap: 30px;
+      align-items: center;
+      width: 940px;
+      max-width: 100vw;
+      justify-content: center;
+    }
+    
+    #game {
+      display: flex;
+      flex-direction: column;
+      align-items: center; 
+      position: relative;
+    }
+
+    .cell {
+      position: relative;
+      width: 44px; height: 44px;
+      background: var(--cell-bg);
+      border: 2px solid var(--border-color);
+      color: var(--text-color);
+      font-weight: bold;
+      font-size: 23px;
+      letter-spacing: 0.03em;
+      text-shadow: none;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: 0.18s;
+      z-index: 1;
+      user-select: none;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .cell.selected { background: #ffff00; color: #222; box-shadow: 0 0 12px 4px #ffff00; }
+    .cell.correct { background: #38ff8e; color: #000; box-shadow: 0 0 16px #32ffd6; }
+    .cell.error { background: #e74c3c; color: #fff; animation: error-blink 0.22s 2; }
+    @keyframes error-blink { 0%,100% { background: #e74c3c; } 50% { background: #fff; color:#e74c3c; } }
+    
+    .cell.hinted {
+      animation: hint-pulse 1.5s ease-in-out;
+    }
+    @keyframes hint-pulse {
+      0%, 100% { transform: scale(1); box-shadow: none; }
+      50% { transform: scale(1.15); box-shadow: 0 0 20px #ffeb3b; background: #ffeb3b; color: #000; z-index: 10; }
+    }
+
+    .cell.rainbow { animation: rainbowGlow 2.5s linear infinite; }
+    .cell.glim { animation: grid-glim 2.5s infinite; }
+    .neon .cell { box-shadow: 0 0 12px var(--main-color), 0 0 28px var(--main-color); }
+    @keyframes rainbowGlow {
+      0% { box-shadow: 0 0 12px #ff0088; }
+      25% { box-shadow: 0 0 12px #00ffff; }
+      50% { box-shadow: 0 0 12px #00ff55; }
+      75% { box-shadow: 0 0 12px #ffaa00; }
+      100% { box-shadow: 0 0 12px #ff0088; }
+    }
+    @keyframes grid-glim {
+      0% { box-shadow: 0 0 12px red; }
+      25% { box-shadow: 0 0 12px orange; }
+      50% { box-shadow: 0 0 12px lime; }
+      75% { box-shadow: 0 0 12px cyan; }
+      100% { box-shadow: 0 0 12px red; }
+    }
+    
+    #sidePanel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch; 
+      width: 170px;
+      flex-shrink: 0;
+    }
+
+    #wordsList::-webkit-scrollbar {
+      width: 8px;
+    }
+    #wordsList::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05); 
+      border-radius: 4px;
+    }
+    #wordsList::-webkit-scrollbar-thumb {
+      background: var(--border-color); 
+      border-radius: 4px;
+    }
+
+    #wordsList {
+      list-style: none; padding: 0; margin: 0;
+      border: none; background: none; 
+      max-height: 80vh; overflow-y: auto; overflow-x: hidden;
+      font-size: 18px; font-family: inherit;
+      width: 100%;
+    }
+    #wordsList li {
+      margin-bottom: 9px; padding: 6px 12px; border: 2px solid var(--border-color);
+      border-radius: 6px; text-align: center; font-size: 18px;
+      background: var(--cell-bg); color: var(--text-color); transition: background 0.2s;
+      box-sizing: border-box; word-wrap: break-word;
+    }
+    #wordsList li.found { text-decoration: line-through; color: #888; background: #aaffc66a; border-color: #8eeabd; }
+    
+    /* Новые стили подсказки: внутри панели, яркая */
+    #hintBtn {
+      display: none;
+      padding: 10px 0;
+      margin-bottom: 16px;
+      width: 100%;
+      background: var(--main-color);
+      color: #111;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 20px;
+      cursor: pointer;
+      text-align: center;
+      transition: transform 0.1s, filter 0.2s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .neon #hintBtn {
+      box-shadow: 0 0 15px var(--main-color);
+    }
+    #hintBtn:hover { transform: scale(1.03); filter: brightness(1.1); }
+    #hintBtn:active { transform: scale(0.97); }
+
+    #messageBox {
+      position: absolute; top: 50%; left: 50%; opacity: 0; pointer-events: none;
+      transition: opacity .3s, transform .3s; transform: translate(-50%, -50%);
+      background: var(--cell-bg); padding: 34px 60px; border-radius: 20px;
+      border: 2px solid var(--border-color); color: var(--text-color);
+      font-size: 26px; font-weight: bold; text-align: center; display: block; z-index: 10; box-shadow: 0 0 12px var(--main-color);
+      font-family: inherit;
+    }
+    #messageBox.show { opacity: 1; pointer-events: auto; transform: translate(-50%,-50%) scale(1); }
+    
+    /* Логика скрытия списка */
+    .words-none #wordsList { display: none; }
+    .words-none #gridArea { flex-direction: row-reverse; } /* Перебрасываем лампочку налево если списка нет */
+    
+    .sparkle {
+      position: absolute; pointer-events: none; width: 8px; height: 8px; border-radius: 50%;
+      background: radial-gradient(circle, #fff 55%, #38ffec 70%, #ee55ff 90%, transparent 100%);
+      opacity: 0.87; z-index: 999; animation: sparkle-move 0.85s cubic-bezier(.33,.62,.56,1) forwards;
+    }
+    @keyframes sparkle-move {
+      0% { opacity: 1; transform: scale(1);}
+      90% { opacity: 0.8;}
+      100% { opacity: 0; transform: translate(var(--tx,0), var(--ty,0)) scale(0.2);}
+    }
+    #gridArea { display: flex; gap: 20px; }
+    .words-left #gridArea { flex-direction: row-reverse; }
+    .words-right #gridArea { flex-direction: row; }
+  </style>
+</head>
+<body>
+<div id="container">
+  <div id="game">
+    <div id="gridArea">
+      <div id="gridWrapper">
+        <div id="grid"></div>
+        <div id="messageBox"></div>
+      </div>
+      <div id="sidePanel">
+        <button id="hintBtn" title="Использовать подсказку">💡</button>
+        <ul id="wordsList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+<audio id="clickSound" src="https://nikashum93.github.io/wordsearch/click.mp3" preload="auto"></audio>
+<audio id="errorSound" src="https://nikashum93.github.io/wordsearch/error.mp3" preload="auto"></audio>
+<audio id="winSound" src="https://nikashum93.github.io/wordsearch/win.mp3" preload="auto"></audio>
+<script>
+  document.addEventListener('contextmenu', event => event.preventDefault());
+  document.addEventListener('keydown', function(e) {
+    if (e.keyCode === 123 || 
+       (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
+       (e.ctrlKey && e.keyCode === 85)) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  let words = __WORDS__;
+  const winText = __WINTEXT__;
+  const level = __LEVEL__;
+  const caseType = __CASE__;
+  const style = __STYLE__;
+  const neon = __NEON__;
+  const neonColor = __NEONCOLOR__;
+  const gridSize = __GRIDSIZE__;
+  const textColor = __TEXTCOLOR__;
+  const borderColor = __BORDERCOLOR__;
+  const bgColor = __BGCOLOR__;
+  const wordsListPosition = __WORDSPOS__;
+  const sparklesOn = __SPARKLES__;
+  const soundOn = __SOUND__;
+  const hintLimitSetting = __HINT_LIMIT__;
+  const alphabet = __ALPHABET__;
+  const fontFamilyType = __FONT__;
+
+  // Динамическое скрытие пустой панели
+  if (wordsListPosition === "none" && (hintLimitSetting === "0" || hintLimitSetting === 0)) {
+     document.getElementById("sidePanel").style.display = "none";
+  }
+
+  document.documentElement.style.setProperty('--n', gridSize);
+
+  const fontStacks = {
+    system: "Arial, Helvetica, sans-serif",
+    kids: "'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', 'Segoe Print', sans-serif",
+    script: "'Segoe Script', 'Brush Script MT', 'Ink Free', cursive",
+    tech: "Consolas, 'Courier New', 'Lucida Console', monospace"
+  };
+  document.documentElement.style.setProperty('--cell-font', fontStacks[fontFamilyType] || fontStacks.system);
+
+  const alphabets = {
+    latin: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    cyrillic: "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ",
+    french: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    german: "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜß",
+    spanish: "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ",
+    pinyin: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    hiragana: "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"
+  };
+
+  const alphabetSet = alphabets[alphabet] || alphabets.latin;
+  const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(""));
+
+  const gridEl = document.getElementById("grid");
+  const wordsListEl = document.getElementById("wordsList");
+  const messageBox = document.getElementById("messageBox");
+  const clickSound = document.getElementById("clickSound");
+  const errorSound = document.getElementById("errorSound");
+  const winSound = document.getElementById("winSound");
+  const hintBtn = document.getElementById("hintBtn");
+
+  clickSound.volume = 1.0;
+  errorSound.volume = 1.0;
+  winSound.volume = 0.8;
+
+  function playAudio(audioEl) {
+    if (soundOn) {
+      audioEl.currentTime = 0;
+      audioEl.play().catch(e => {});
+    }
+  }
+
+  function applyTheme() {
+    let color = "#00ffff";
+    if (style === "rainbow") color = "#ff00c8";
+    if (style === "light") color = "#000000";
+
+    document.documentElement.style.setProperty('--main-color', color);
+    document.documentElement.style.setProperty('--text-color', textColor);
+    document.documentElement.style.setProperty('--border-color', borderColor);
+    document.documentElement.style.setProperty('--cell-bg', bgColor);
+
+    if (neon) {
+      document.body.classList.add("neon");
+      document.documentElement.style.setProperty('--main-color', neonColor);
+    }
+  }
+
+  function formatLetter(letter) {
+    if (caseType === "lowercase") return letter.toLowerCase();
+    return letter.toUpperCase();
+  }
+
+  function formatWord(word) {
+    return [...word].map(l => {
+      let up = l.toUpperCase();
+      if (alphabetSet.includes(up)) return formatLetter(up);
+      return null;
+    }).filter(l => l !== null);
+  }
+
+  let placedWordsData = []; 
+
+  function placeWords() {
+    const MAX_ATTEMPTS = 100; 
+    let finalGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(""));
+    let finalPlacedWords = [];
+    let finalUnplaced = words; 
+
+    const dirOptions = {
+      easy: [[1,0],[0,1]],
+      medium: [[1,0],[0,1],[1,1]],
+      hard: [[1,0],[0,1],[1,1],[-1,1],[1,-1],[0,-1],[-1,0],[-1,-1]]
+    }[level];
+
+    let basePositions = [];
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        for (let d = 0; d < dirOptions.length; d++) {
+          basePositions.push({x, y, dx: dirOptions[d][0], dy: dirOptions[d][1]});
+        }
+      }
+    }
+
+    let wordsToPlace = [...words].sort((a, b) => {
+      const wA = formatWord(a);
+      const wB = formatWord(b);
+      return (wB ? wB.length : 0) - (wA ? wA.length : 0);
+    });
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      let tempGrid = Array.from({ length: gridSize }, () => Array(gridSize).fill(""));
+      let tempPlaced = [];
+      let tempUnplaced = [];
+      
+      for (const wordRaw of wordsToPlace) {
+        const word = formatWord(wordRaw);
+        if (!word || word.length === 0) continue;
+
+        let placed = false;
+        let allPositions = [...basePositions];
+        
+        for (let i = allPositions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          let temp = allPositions[i];
+          allPositions[i] = allPositions[j];
+          allPositions[j] = temp;
+        }
+
+        for (let pos of allPositions) {
+          const {x, y, dx, dy} = pos;
+          let fits = true;
+          let currentCoords = [];
+          let newLetters = 0;
+          
+          for (let i = 0; i < word.length; i++) {
+            const nx = x + dx * i, ny = y + dy * i;
+            if (nx < 0 || ny < 0 || nx >= gridSize || ny >= gridSize) { fits = false; break; }
+            if (tempGrid[ny][nx] && tempGrid[ny][nx] !== word[i]) { fits = false; break; }
+            
+            if (!tempGrid[ny][nx]) newLetters++; 
+            currentCoords.push(nx + "," + ny);
+          }
+          
+          if (fits && newLetters === 0) { fits = false; }
+
+          if (fits) {
+            for (let i = 0; i < word.length; i++) {
+              const nx = x + dx * i, ny = y + dy * i;
+              tempGrid[ny][nx] = word[i];
+            }
+            tempPlaced.push({
+               wordRaw: wordRaw,
+               formatted: word.join(""),
+               coords: currentCoords,
+               found: false
+            });
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) tempUnplaced.push(wordRaw);
+      }
+
+      if (tempUnplaced.length < finalUnplaced.length) {
+        finalGrid = tempGrid;
+        finalPlacedWords = tempPlaced;
+        finalUnplaced = tempUnplaced;
+      }
+
+      if (finalUnplaced.length === 0) {
+        break;
+      }
+    }
+
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        grid[y][x] = finalGrid[y][x] || "";
+      }
+    }
+    placedWordsData = finalPlacedWords;
+
+    if (finalUnplaced.length > 0) {
+      window.parent.postMessage({ type: 'placementWarning', unplaced: finalUnplaced }, '*');
+      words = words.filter(w => !finalUnplaced.includes(w));
+    } else {
+      window.parent.postMessage({ type: 'placementSuccess' }, '*');
+    }
+
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        if (!grid[y][x]) {
+          let rnd = alphabetSet[Math.floor(Math.random() * alphabetSet.length)];
+          grid[y][x] = formatLetter(rnd);
+        }
+      }
+    }
+  }
+
+  let cellRefs = [];
+  function renderGrid() {
+    gridEl.innerHTML = "";
+    cellRefs = [];
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        if (style === "rainbow") cell.classList.add("rainbow");
+        cell.dataset.x = x;
+        cell.dataset.y = y;
+        cell.textContent = grid[y][x];
+        gridEl.appendChild(cell);
+        cellRefs.push(cell);
+      }
+    }
+  }
+
+  function updateWordList() {
+    wordsListEl.innerHTML = "";
+    words.forEach(wordRaw => {
+      const pw = placedWordsData.find(p => p.wordRaw === wordRaw);
+      if (!pw) return;
+      const li = document.createElement("li");
+      li.textContent = pw.formatted;
+      if (pw.found) li.classList.add("found");
+      wordsListEl.appendChild(li);
+    });
+  }
+
+  function createSparkles(x, y, container) {
+    for (let i = 0; i < 13; i++) {
+      const sparkle = document.createElement('div');
+      sparkle.className = 'sparkle';
+      sparkle.style.left = x + 'px';
+      sparkle.style.top = y + 'px';
+      const angle = Math.random() * 2 * Math.PI;
+      const dist = 21 + Math.random() * 18;
+      sparkle.style.setProperty('--tx', (Math.cos(angle)*dist) + 'px');
+      sparkle.style.setProperty('--ty', (Math.sin(angle)*dist) + 'px');
+      setTimeout(() => sparkle.remove(), 830 + Math.random()*120);
+      container.appendChild(sparkle);
+    }
+  }
+
+  let selection = [];
+
+  function checkLine() {
+    if (selection.length < 2) return true; 
+    const first = selection[0];
+    const last = selection[selection.length - 1];
+    const dx = last.dataset.x - first.dataset.x;
+    const dy = last.dataset.y - first.dataset.y;
+    return (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+  }
+
+  function clearSelection(error = false) {
+    selection.forEach(cell => {
+      cell.classList.remove("selected");
+      if (error) {
+        cell.classList.add("error");
+        setTimeout(() => cell.classList.remove("error"), 350);
+      }
+    });
+    selection = [];
+  }
+
+  function handleClick(e) {
+    if (!e.target.classList.contains("cell")) return;
+    const cell = e.target;
+    
+    playAudio(clickSound);
+    
+    if (selection.includes(cell)) return;
+
+    cell.classList.add("selected");
+    selection.push(cell);
+
+    const selectedText = selection.map(c => c.textContent).join("");
+    const selectedCoords = selection.map(c => c.dataset.x + ',' + c.dataset.y).join('|');
+    const selectedCoordsRev = selection.map(c => c.dataset.x + ',' + c.dataset.y).reverse().join('|');
+
+    const matchedWord = placedWordsData.find(p => 
+      !p.found && (p.coords.join('|') === selectedCoords || p.coords.join('|') === selectedCoordsRev)
+    );
+
+    if (matchedWord && checkLine()) {
+      selection.forEach(c => {
+        c.classList.add("correct");
+        c.classList.remove("selected");
+        if (sparklesOn) {
+          const cellRect = c.getBoundingClientRect();
+          const gridRect = gridEl.getBoundingClientRect();
+          const x = cellRect.left - gridRect.left + c.clientWidth/2;
+          const y = cellRect.top  - gridRect.top  + c.clientHeight/2;
+          createSparkles(x, y, gridEl);
+        }
+      });
+      
+      matchedWord.found = true;
+      updateWordList();
+      selection = [];
+
+      if (placedWordsData.every(p => p.found)) {
+        playAudio(winSound);
+        document.querySelectorAll(".cell").forEach(c => c.classList.add("rainbow", "glim"));
+        hintBtn.style.display = 'none'; 
+        setTimeout(() => {
+          messageBox.innerText = winText;
+          messageBox.classList.add("show");
+        }, 650);
+      }
+    } else {
+      const isPrefix = placedWordsData.some(p => {
+        if (p.found) return false;
+        const fw = p.formatted;
+        const rev = p.formatted.split('').reverse().join('');
+        return fw.startsWith(selectedText) || rev.startsWith(selectedText);
+      });
+
+      if (!isPrefix || !checkLine() || selection.length > Math.max(...placedWordsData.map(p => p.formatted.length))) {
+        playAudio(errorSound);
+        clearSelection(true);
+      }
+    }
+  }
+
+  let hintsRemaining = hintLimitSetting === "unlimited" ? Infinity : parseInt(hintLimitSetting, 10);
+
+  function updateHintBtnText() {
+    if (hintsRemaining === Infinity) {
+      hintBtn.innerText = "💡";
+    } else {
+      hintBtn.innerText = "💡 " + hintsRemaining;
+    }
+  }
+
+  if (hintsRemaining > 0 || hintsRemaining === Infinity) {
+    hintBtn.style.display = "block";
+    updateHintBtnText();
+
+    hintBtn.addEventListener("click", () => {
+      if (hintsRemaining <= 0) return;
+
+      const unplaced = placedWordsData.filter(p => !p.found);
+      if (unplaced.length === 0) return;
+      const targetWord = unplaced[Math.floor(Math.random() * unplaced.length)];
+      const firstCoord = targetWord.coords[0];
+      const coordsArr = firstCoord.split(',');
+      const x = coordsArr[0];
+      const y = coordsArr[1];
+      const cell = document.querySelector('.cell[data-x="' + x + '"][data-y="' + y + '"]');
+      
+      if (cell) {
+        cell.classList.remove('hinted');
+        void cell.offsetWidth; 
+        cell.classList.add('hinted');
+      }
+
+      if (hintsRemaining !== Infinity) {
+        hintsRemaining--;
+        updateHintBtnText();
+        if (hintsRemaining === 0) {
+          hintBtn.style.display = "none";
+        }
+      }
+    });
+  }
+
+  applyTheme();
+  const container = document.getElementById("container");
+  container.classList.remove("words-left", "words-right", "words-none");
+  container.classList.add("words-" + wordsListPosition);
+  placeWords();
+  renderGrid();
+  updateWordList();
+  gridEl.addEventListener("click", handleClick);
+<\/script>
+</body>
+</html>`;
+
+    // --- ЛОГИКА РЕДАКТОРА ---
     function generateIframe() {
       const wordsRaw = document.getElementById('words').value;
-      const alphabet = document.getElementById('alphabet').value;
-      const letterCase = document.getElementById('case').value;
-      const level = document.getElementById('level').value;
+      const wordsList = wordsRaw.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
       
       const winInput = document.getElementById('winText');
       const rawWinText = winInput.value.trim() || winInput.placeholder;
-      const winText = encodeURIComponent(rawWinText);
-
+      
+      const alphabet = document.getElementById('alphabet').value;
+      const letterCase = document.getElementById('case').value;
+      const level = document.getElementById('level').value;
+      const fontFamily = document.getElementById('fontFamily').value || 'system';
       const style = document.getElementById('style')?.value || 'light';
-      const neon = document.getElementById('neon')?.checked ? 1 : 0;
-      const neonColor = document.getElementById('neonColor')?.value?.slice(1) || '00ffff';
-      const sparkles = document.getElementById('sparkles')?.checked ? 1 : 0;
-      const bgColor = document.getElementById('bgColor')?.value?.slice(1) || 'f8fdff';
-      const borderColor = document.getElementById('borderColor')?.value?.slice(1) || '00ccff';
-      const textColor = document.getElementById('textColor')?.value?.slice(1) || '00ffff';
+      const neon = document.getElementById('neon')?.checked ? true : false;
+      const neonColor = document.getElementById('neonColor')?.value || '#00ffff';
+      const sparkles = document.getElementById('sparkles')?.checked ? true : false;
+      const soundOn = document.getElementById('soundOn')?.checked ? true : false;
+      const hintLimit = document.getElementById('hintLimit')?.value || '0';
+      const bgColor = document.getElementById('bgColor')?.value || '#ffffff';
+      const borderColor = document.getElementById('borderColor')?.value || '#00ccff';
+      const textColor = document.getElementById('textColor')?.value || '#00ffff';
       const gridSize = parseInt(document.getElementById('gridSize')?.value || 10);
       const wordsListPosition = document.getElementById('wordsListPosition')?.value || 'right';
 
-      const wordsList = wordsRaw.split(/[\n,]+/).map(w => w.trim()).filter(w => w);
-      
       if (wordsList.length > 0) {
         const longestWord = wordsList.reduce((max, w) => Math.max(max, w.length), 0);
         if (longestWord > gridSize) {
@@ -423,31 +1070,34 @@
 
       document.getElementById('warningBox').style.display = 'none';
 
-      const params = new URLSearchParams({
-        words: wordsList.join(','),
-        alphabet,
-        case: letterCase,
-        level,
-        winText,
-        style,
-        neon,
-        neonColor,
-        sparkles,
-        bgColor,
-        borderColor,
-        textColor,
-        gridSize,
-        wordsListPosition
-      });
+      let compiledHtml = engineTemplate;
+      compiledHtml = compiledHtml.replace('__WORDS__', JSON.stringify(wordsList.length ? wordsList : ["HAT","KEY","LAMP"]));
+      compiledHtml = compiledHtml.replace('__WINTEXT__', JSON.stringify(rawWinText));
+      compiledHtml = compiledHtml.replace('__LEVEL__', JSON.stringify(level));
+      compiledHtml = compiledHtml.replace('__CASE__', JSON.stringify(letterCase));
+      compiledHtml = compiledHtml.replace('__FONT__', JSON.stringify(fontFamily));
+      compiledHtml = compiledHtml.replace('__STYLE__', JSON.stringify(style));
+      compiledHtml = compiledHtml.replace('__NEON__', neon);
+      compiledHtml = compiledHtml.replace('__NEONCOLOR__', JSON.stringify(neonColor));
+      compiledHtml = compiledHtml.replace('__GRIDSIZE__', gridSize);
+      compiledHtml = compiledHtml.replace('__TEXTCOLOR__', JSON.stringify(textColor));
+      compiledHtml = compiledHtml.replace('__BORDERCOLOR__', JSON.stringify(borderColor));
+      compiledHtml = compiledHtml.replace('__BGCOLOR__', JSON.stringify(bgColor));
+      compiledHtml = compiledHtml.replace('__WORDSPOS__', JSON.stringify(wordsListPosition));
+      compiledHtml = compiledHtml.replace('__SPARKLES__', sparkles);
+      compiledHtml = compiledHtml.replace('__SOUND__', soundOn);
+      compiledHtml = compiledHtml.replace('__HINT_LIMIT__', JSON.stringify(hintLimit));
+      compiledHtml = compiledHtml.replace('__ALPHABET__', JSON.stringify(alphabet));
 
-      const iframeURL = `https://nikashum93.github.io/wordsearch4/main.html?${params.toString()}`;
+      const escapeForSrcdoc = (str) => str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+      const iframeCode = `<iframe srcdoc="${escapeForSrcdoc(compiledHtml)}" width="960" height="540" frameborder="0" allowfullscreen></iframe>`;
 
-      document.getElementById('hiddenResultBox').value = 
-        `<iframe src="${iframeURL}" width="960" height="540" frameborder="0" allowfullscreen></iframe>`;
+      document.getElementById('hiddenResultBox').value = iframeCode;
 
       const preview = document.getElementById('previewFrame');
       if (preview) {
-        preview.src = iframeURL;
+        preview.removeAttribute('src');
+        preview.srcdoc = compiledHtml;
       }
     }
 
